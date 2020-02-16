@@ -2,6 +2,7 @@
 import os
 import sys 
 import xml.dom.minidom
+import requests
 
 def manifest_analysis(source):
     #List of Android dangerous permissions
@@ -439,12 +440,35 @@ def manifest_analysis(source):
     boolean=0
     for meta_data in meta_datas:
         if any(x in meta_data.getAttribute("android:name") for x in keywords):
-            des="Hardcoded ApiKey found in AndroidManifest file."
-            imp ="Hardcoded Apikeys may be used to abuse the developpers service account, by either consuming credit for paying services or making the serivce unavailable."
-            recom ="It is recommended to store Apikeys at a remote endpoint and get them on runtime or save them in resource files."
+            boolean = 1
+            if meta_data.getAttribute("android:name").lower() == "com.google.android.geo.api_key":
+                apikey = meta_data.getAttribute("android:value")
+                response = requests.post(url="https://www.googleapis.com/geolocation/v1/geolocate", params="{'key':%s}"%apikey)
+                response_code = response.status_code
+                if response_code == 200:
+                    des="you account Google geo services is accessible using your apikey found in AndroidManifest."
+                    imp ="Hardcoded Apikeys may be used to abuse the developpers service account, by either consuming credit for paying services or making the serivce unavailable."
+                    recom ="Apply SDK restriction on for your Google geo services account."
+                    state = 'ERROR'
+                    print "\nparameter : %s\nvalue : %s\ndescription : %s\nimpact : %s\nrecommandation : %s\nstatus : %s\n"%(meta_data.getAttribute("android:name"),meta_data.getAttribute("android:value"),des,imp,recom,state)
+                    
+                if response_code == 403:
+                    des="Access to your Google geo services account is restricted"
+                    state = 'Good'
+                    print "\nparameter : Hardcoded ApiKeys\nvalue : None\ndescription %s\nstatus : %s\n"%(des,state)
+            else:  
+                des="Hardcoded ApiKey found in AndroidManifest file."
+                imp ="Hardcoded Apikeys may be used to abuse the developpers service account, by either consuming credit for paying services or making the serivce unavailable."
+                recom ="It is recommended to store Apikeys at a remote endpoint and get them on runtime or save them in resource files or as building variables in gradle."
+                state = 'ERROR'
+                print "\nparameter : %s\nvalue : %s\ndescription : %s\nimpact : %s\nrecommandation : %s\nstatus : %s\n"%(meta_data.getAttribute("android:name"),meta_data.getAttribute("android:value"),des,imp,recom,state)
+
+        if (meta_data.getAttribute("android:name") == "android.webkit.WebView.EnableSafeBrowsing") and (meta_data.getAttribute("android:value") == "false"):
+            des="Android SafeBrowing is disabled for webview within your application"
+            imp ="When disabling SafeBrowsing for webview within your application your application is exposed to a security risk and could load URLs wich may contain malicious content such as Trojans."
+            recom ="It is recommended to enable SafeBrowsing for webview in your application. Furthermore you can customize your application response to URLs with known threats using Android SafeBrowsing API."
             state = 'ERROR'
             print "\nparameter : %s\nvalue : %s\ndescription : %s\nimpact : %s\nrecommandation : %s\nstatus : %s\n"%(meta_data.getAttribute("android:name"),meta_data.getAttribute("android:value"),des,imp,recom,state)
-            boolean = 1
 
     if boolean == 0:    
         des="No hardcoded Apikey found in resources files"
@@ -505,4 +529,6 @@ def main():
     source = sys.argv[1]
     manifest_analysis(source)
 
+if __name__ == "__main__":
+    main()
 
