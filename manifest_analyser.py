@@ -443,7 +443,7 @@ def manifest_analysis(source):
             boolean = 1
             if meta_data.getAttribute("android:name").lower() == "com.google.android.geo.api_key":
                 apikey = meta_data.getAttribute("android:value")
-                response = requests.post(url="https://www.googleapis.com/geolocation/v1/geolocate", params="{'key':%s}"%apikey)
+                response = requests.post(url="https://www.googleapis.com/geolocation/v1/geolocate?key=%s"%apikey,params={'Content-Type':'application/json'})
                 response_code = response.status_code
                 if response_code == 200:
                     des="you account Google geo services is accessible using your apikey found in AndroidManifest."
